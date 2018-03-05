@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+
+<html lang="es">
+  <head>
+
+    <title>Arkbox LUIS</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="jquery.min.js"></script>
+
+
+    <style>
+        body {
+            font-family: "Lato", sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        div {
+          margin:0;
+          padding:0;
+        }
+        .container {
+          position: fixed;
+          height: 100%;
+          width: 100%;
+          top: 0;
+          left: 0;
+        }
+        img {
+          width: 100%;
+          height: 100%;
+        }
+        video {
+          width: 100% ;
+          height: 100% ;
+        }
+
+    </style>
+
+  </head>
+
+<body>
+
+    <!-- Page content -->
+    <div class="w3-content" style="max-width:2000px;margin-top:46px">
+
+        <!-- The Main Section -->
+        <div class="w3-container w3-content w3-center w3-padding-64" style="max-width:800px" id="Principal">
+            <h2 class="w3-wide">ARKBOX by Luis Zuluaga</h2>
+            <p class="w3-opacity"><i>I love JavaScript</i></p>
+            <p class="w3-justify">
+                I have created a poorly webapp. This webapp displays 4 objects (2 videos and 2 images) in the right order and starts when the first object is completely downloaded.
+            </p>
+            <progress id="progressBar" value="0" max="100" style="width:500px; height:40px;"> </progress>
+            <h3 id="status"></h3>
+            <p id="loaded_n_total"></p>
+        </div>
+    </div>
+
+    <script>
+
+    loadSetList();
+    var Start, Now;
+    var numImages = 1;
+    var numVideos = 1;
+    var index = 0;
+    var items = 0;
+    var StartInterval = true;
+    var myTimer, setlist;
+    var socket = io.connect('http://localhost:8080', {'forceNew' : true});
+
+    socket.on('percentage', function(data){
+      console.log(data);
+      document.getElementById('progressBar').value = data;
+
+    });
+
+    function VideoEnd() {
+
+      index = index + 1;
+      if (index == (setlist.length-1))  {
+        index = 0;
+      }
+
+      Display();
+    }
+
+    function StartInt() {
+
+      myTimer = setInterval(Check, 200);
+
+    }
+
+    function loadSetList() {
+      var xhttp = new XMLHttpRequest();
+      xhttp.onreadystatechange = function () {
+        if (this.readyState == 4 && this.status == 200) {
+          document.getElementById("status").innerHTML = "Descargando...";
+          setlist = JSON.parse(this.responseText);
+          console.log("La cantidad de items es: "+ setlist.length);
+          CreateTags(setlist.length)
+          CheckItems(setlist.length, 0);
+        }
+      };
+      xhttp.open("GET", "PlayList.json", true);
+      xhttp.send();
+    }
+
+    function CreateTags(numberItems) {
+
+      for (i=0; i < numberItems; i++) {
+
+        var parts = setlist[i].Name.split('.');
+        var ext = parts[parts.length - 1];
+
+        if (ext == 'jpg') {
+
+          $('#Principal').append("<div class='container' id='space"+(i+1)+"'><img id='image"+(numImages)+"'/></div>");
+          numImages++;
+
+        } else if (ext == 'mp4'){
+
+          $('#Principal').append("<div class='container' id='space"+(i+1)+"'><video id='video"+(numVideos)+"'></video></div>");
+          numVideos++;
+
+        }
+      }
+
+      $("video").on("ended", VideoEnd);
+    }
+
+    function CheckItems(number, current) {
+
+      if (current < number) {
+        var xhttp = new XMLHttpRequest();
+
+        xhttp.onreadystatechange = function () {
+          if (this.readyState == 4 && this.status == 200) {
+
+            current = current + 1;
+            items = current;
+            document.getElementById("progressBar").value = current * 25;
+            document.getElementById("status").innerHTML = ("Descargado " + current.toString() + "/" + number.toString());
+            LoadItems(current);
+
+            if (StartInterval) {
+              Display();
+              StartInt();
+              StartInterval = false;
+            }
+
+            CheckItems(number, current);
+
+          } else if (this.readyState == 4 && this.status == 404) {
+            DownloadItems(number, current);
+          }
+        };
+        xhttp.open("GET", "Check/" + current.toString(), true);
+        xhttp.send();
+
+      }
+    }
+
+    function DownloadItems(number, current) {
+
+      var xhttp = new XMLHttpRequest();
+
+      xhttp.onreadystatechange = function () {
+        if (this.readyState == 4 && this.status == 200) {
+
+          current = current + 1;
+          items = current;
+          document.getElementById("progressBar").value = current * 25;
+          document.getElementById("status").innerHTML = ("Descargado " + current.toString() + "/" + number.toString());
+          LoadItems(current);
+          Display();
+
+          if (StartInterval) {
+
+            StartInt();
+            StartInterval = false;
+          }
+
+          if (current < number) {
+            CheckItems(number, current);
+          }
+        }
+      };
+
+      xhttp.open("GET", "Download/" + current.toString(), true);
+      xhttp.send();
+
+    }
+
+    function LoadItems(current) {
+
+      numImages = 1;
+      numVideos = 1;
+
+      for (i = 0; i < current; i++) {
+
+        var parts = setlist[i].Name.split('.');
+        var ext = parts[parts.length - 1];
+
+
+        if (ext == 'jpg') {
+
+          Image = document.getElementById("image"+(numImages));
+          Image.setAttribute("src", ("/Media/"+setlist[i].Name));
+          numImages++;
+
+        } else if (ext == 'mp4'){
+
+          Video = document.getElementById('video'+(numVideos));
+          Video.setAttribute("src", ("/Media/"+setlist[i].Name));
+          numVideos++;
+
+        }
+      }
+      numImages = 1;
+      numVideos = 1;
+
+    }
+
+    function Display() {
+
+      var parts = setlist[index].Name.split('.');
+      var ext = parts[parts.length - 1];
+
+      if (ext == 'jpg') {
+
+        Video = document.getElementById('video1');
+        Video.pause();
+        Video2 = document.getElementById('video2');
+        Video2.pause();
+        $("div").css("z-index", "0");
+        $("#space"+(index+1)).css("z-index", "1");
+        Start = new Date();
+
+      } else if (ext == 'mp4'){
+
+        $("div").css("z-index", "0");
+        $("#space"+(index+1)).css("z-index", "1");
+        Video = document.getElementById('video'+(numVideos));
+        Video.load();
+        Video.play();
+        Start = new Date();
+        numVideos++;
+
+        if (numVideos == 3) {
+          numVideos = 1;
+        }
+
+      }
+    }
+
+    function Check() {
+
+      Now = new Date();
+
+      if (setlist[index].Duration == -1) {
+
+      } else {
+
+        if (((Now - Start)/1000) >=  Number(setlist[index].Duration) && ((items-(index+1)) >= 1) && (index<(setlist.length-1))) {
+
+          index = index + 1;
+          Display();
+
+        } else if (((Now - Start)/1000) >=  Number(setlist[index].Duration) && (items == setlist.length) && (index==(setlist.length-1))) {
+
+          index = 0;
+          Display();
+
+        }
+      }
+    }
+
+    </script>
+
+</body>
+</html>
