@@ -75,7 +75,7 @@ app.get('/Check/:number', function (req, res) {
         var SetList = JSON.parse(data);
         console.log(SetList);
 
-        fs.open('/Users/User/Desktop/Web Development 2/PruebaTekus4/Media/' + SetList[req.params.number].Name, 'r', (err, fd) => {
+        fs.open(path.join(__dirname, '/Public/Media/' + SetList[req.params.number].Name) , 'r', (err, fd) => {
             if (err) {
                 if (err.code === 'ENOENT') {
 
@@ -105,7 +105,7 @@ var download = function (uri, filename, callback) {
               console.log('progress', state.percent);
               io.sockets.emit('percentage', (state.percent*100));
 
-        }).pipe(fs.createWriteStream("/Users/User/Desktop/Web Development 2/PruebaTekus4/Public/Media/" + filename)).on('close', callback);
+        }).pipe(fs.createWriteStream(path.join(__dirname, '/Public/Media/' + filename))).on('close', callback);
 
     });
 };
