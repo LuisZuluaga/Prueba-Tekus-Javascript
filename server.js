@@ -28,7 +28,7 @@ app.get('/', function (req, res) {
 
 app.get('/PlayList.json', function (req, res) {
 
-    fs.stat('/Public/PLayList.json', function (err, stat) {
+    fs.stat(path.join(__dirname, '/Public/PlayList.json'), function (err, stat) {
 
         if (err == null) {
             console.log("Ya se ha descargado el archivo PlayList.json");
